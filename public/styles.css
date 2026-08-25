@@ -213,6 +213,10 @@ h2 {
   border-left: 3px solid var(--amber-text);
 }
 
+.app-card.checking {
+  border-left-color: var(--muted);
+}
+
 .row-top {
   display: flex;
   align-items: flex-start;
@@ -361,6 +365,12 @@ dd a:focus-visible {
   color: var(--amber-text);
   background: rgba(210, 153, 34, 0.18);
   border: 1px solid rgba(242, 204, 96, 0.48);
+}
+
+.pill.checking {
+  color: var(--muted);
+  background: rgba(139, 148, 158, 0.12);
+  border: 1px solid rgba(139, 148, 158, 0.32);
 }
 
 @media (max-width: 760px) {

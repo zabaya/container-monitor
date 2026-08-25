@@ -12,6 +12,8 @@ const counters = {
   unknown: document.querySelector("#unknown")
 };
 
+const cacheKey = "container-monitor.containers";
+
 const mockContainers = [
   {
     id: "mock-current",
@@ -55,7 +57,10 @@ const mockContainers = [
 ];
 
 let realContainers = [];
-let activeFilter = "action";
+let activeFilter = "all";
+let isRefreshing = false;
+let showingCachedContainers = false;
+let loadError = "";
 
 function shortDigest(digest) {
   if (!digest) return "No digest";
@@ -142,10 +147,10 @@ function filterContainers(containers) {
 
 function renderRows(containers) {
   rowsEl.innerHTML = containers.map((row) => `
-    <article class="app-card ${escapeHtml(row.updateState)}">
+    <article class="app-card ${escapeHtml(row.updateState)}${showingCachedContainers && isRefreshing ? " checking" : ""}">
       <div class="row-top">
         <div class="name">${escapeHtml(row.name)}${row.id?.startsWith("mock-") ? '<span class="mock-badge">Mockup</span>' : ""}</div>
-        <span class="pill ${escapeHtml(row.updateState)}">${stateLabel(row.updateState)}</span>
+        <span class="pill ${showingCachedContainers && isRefreshing ? "checking" : escapeHtml(row.updateState)}">${showingCachedContainers && isRefreshing ? "Checking..." : stateLabel(row.updateState)}</span>
       </div>
       <div class="app-main">
         <div class="meta">
@@ -170,13 +175,48 @@ function renderRows(containers) {
   `).join("");
 }
 
+function attentionCount(containers) {
+  return containers.filter((row) => row.updateState === "outdated" || row.updateState === "unknown").length;
+}
+
+function attentionRank(row) {
+  return {
+    outdated: 0,
+    unknown: 1,
+    current: 2
+  }[row.updateState] ?? 3;
+}
+
+function sortContainers(containers) {
+  if (activeFilter !== "all") return containers;
+  return [...containers].sort((a, b) => attentionRank(a) - attentionRank(b));
+}
+
+function readCachedContainers() {
+  try {
+    const cached = JSON.parse(localStorage.getItem(cacheKey) || "null");
+    if (!cached || !Array.isArray(cached.containers)) return null;
+    return cached;
+  } catch {
+    return null;
+  }
+}
+
+function writeCachedContainers(containers, checkedAt) {
+  try {
+    localStorage.setItem(cacheKey, JSON.stringify({ containers, checkedAt }));
+  } catch {
+    // The live data is still useful even if browser storage is unavailable.
+  }
+}
+
 function visibleContainers() {
   return showMockupsEl.checked ? [...realContainers, ...mockContainers] : realContainers;
 }
 
 function render() {
   const containers = visibleContainers();
-  const filteredContainers = filterContainers(containers);
+  const filteredContainers = sortContainers(filterContainers(containers));
   setCounters(containers);
   filterTabs.forEach((tab) => {
     const active = tab.dataset.filter === activeFilter;
@@ -187,9 +227,9 @@ function render() {
   if (filteredContainers.length === 0) {
     rowsEl.hidden = true;
     stateEl.hidden = false;
-    stateEl.textContent = containers.length === 0
+    stateEl.textContent = loadError || (containers.length === 0
       ? "No running Docker apps found."
-      : "No apps match this filter.";
+      : "No apps match this filter.");
     return;
   }
 
@@ -199,10 +239,16 @@ function render() {
 }
 
 async function refresh() {
+  isRefreshing = true;
+  loadError = "";
   refreshButton.disabled = true;
-  stateEl.hidden = false;
-  rowsEl.hidden = true;
-  stateEl.textContent = "Checking Docker...";
+  if (realContainers.length === 0) {
+    stateEl.hidden = false;
+    rowsEl.hidden = true;
+    stateEl.textContent = "Checking Docker...";
+  } else {
+    render();
+  }
 
   try {
     const response = await fetch("/api/containers");
@@ -213,14 +259,21 @@ async function refresh() {
     }
 
     realContainers = data.containers;
+    showingCachedContainers = false;
     checkedAtEl.textContent = `Checked ${new Date(data.checkedAt).toLocaleString()}`;
-    render();
+    writeCachedContainers(realContainers, data.checkedAt);
+    if (attentionCount(realContainers) > 0) {
+      activeFilter = "action";
+    }
   } catch (error) {
-    stateEl.textContent = error.message;
-    realContainers = [];
-    setCounters([]);
+    loadError = error.message;
+    if (realContainers.length === 0) {
+      setCounters([]);
+    }
   } finally {
+    isRefreshing = false;
     refreshButton.disabled = false;
+    render();
   }
 }
 
@@ -232,4 +285,12 @@ filterTabs.forEach((tab) => {
     render();
   });
 });
+
+const cached = readCachedContainers();
+if (cached) {
+  realContainers = cached.containers;
+  showingCachedContainers = true;
+  checkedAtEl.textContent = `Last checked ${new Date(cached.checkedAt).toLocaleString()}`;
+  render();
+}
 refresh();
