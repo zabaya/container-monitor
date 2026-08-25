@@ -1,0 +1,13 @@
+{
+  "name": "container-monitor",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Small local app for checking running Docker containers and image updates.",
+  "scripts": {
+    "dev": "node server.js",
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

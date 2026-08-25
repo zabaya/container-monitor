@@ -1,0 +1,16 @@
+services:
+  container-monitor:
+    image: node:22-alpine
+    container_name: container-monitor
+    restart: unless-stopped
+    user: "0:0"
+    working_dir: /app
+    command: sh -c "apk add --no-cache docker-cli && npm start"
+    ports:
+      - "4173:4173"
+    volumes:
+      - ./:/app
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      - DOCKGE_URL=http://localhost:5001
+      - REGISTRY_TIMEOUT_MS=8000

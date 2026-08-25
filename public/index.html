@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Container Monitor</title>
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="/styles.css">
+  </head>
+  <body>
+    <main class="shell">
+      <header class="topbar">
+        <div>
+          <h1>Container Monitor</h1>
+        </div>
+        <button class="refresh-button" id="refresh" type="button">Refresh</button>
+      </header>
+
+      <section class="summary" aria-label="App filters">
+        <button class="tab active" type="button" data-filter="action" aria-pressed="true">
+          <span id="action">0</span>
+          <p>Needs action</p>
+        </button>
+        <button class="tab" type="button" data-filter="current" aria-pressed="false">
+          <span id="current">0</span>
+          <p>Up to date</p>
+        </button>
+        <button class="tab" type="button" data-filter="all" aria-pressed="false">
+          <span id="all">0</span>
+          <p>All</p>
+        </button>
+        <button class="tab" type="button" data-filter="unknown" aria-pressed="false">
+          <span id="unknown">0</span>
+          <p>Could not check</p>
+        </button>
+      </section>
+
+      <section class="panel">
+        <div class="panel-header">
+          <div>
+            <h2>Running Apps</h2>
+            <label class="mock-toggle">
+              <input id="show-mockups" type="checkbox">
+              Show mockup examples
+            </label>
+          </div>
+          <p id="checked-at">Not checked yet</p>
+        </div>
+        <div id="state" class="state">Checking Docker...</div>
+        <div id="rows" class="app-list" hidden></div>
+      </section>
+    </main>
+
+    <script src="/app.js"></script>
+  </body>
+</html>

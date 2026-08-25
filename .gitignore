@@ -1,0 +1,10 @@
+# Local deployment scripts and machine-specific notes
+deploy.sh
+deploy.local.sh
+deploy.*.sh
+*.local
+
+# Dependencies and runtime noise
+node_modules/
+npm-debug.log*
+.DS_Store
