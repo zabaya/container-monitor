@@ -31,6 +31,13 @@ function json(res, status, body) {
   res.end(JSON.stringify(body));
 }
 
+function apiError(res, error) {
+  json(res, 500, {
+    error: "Unable to read Docker containers",
+    detail: error.message
+  });
+}
+
 async function fetchWithTimeout(url, options = {}) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), REGISTRY_TIMEOUT_MS);
@@ -338,29 +345,81 @@ async function dockerDiagnostics() {
   };
 }
 
+function glancePayload(rows, checkedAt) {
+  const counts = rows.reduce((result, row) => {
+    result.total += 1;
+    result[row.updateState] = (result[row.updateState] || 0) + 1;
+    if (row.updateState === "outdated" || row.updateState === "unknown") {
+      result.attention += 1;
+    }
+    return result;
+  }, {
+    total: 0,
+    current: 0,
+    outdated: 0,
+    unknown: 0,
+    attention: 0
+  });
+
+  return {
+    checkedAt,
+    status: counts.outdated > 0 ? "updates_available" : counts.unknown > 0 ? "unknown" : "ok",
+    summary: counts.outdated > 0
+      ? `${counts.outdated} update${counts.outdated === 1 ? "" : "s"} available`
+      : counts.unknown > 0
+        ? `${counts.unknown} container${counts.unknown === 1 ? "" : "s"} could not be checked`
+        : "All containers are up to date",
+    counts,
+    containers: rows
+      .filter((row) => row.updateState === "outdated" || row.updateState === "unknown")
+      .map((row) => ({
+        id: row.id,
+        name: row.name,
+        image: row.image,
+        repository: row.repository,
+        tag: row.tag,
+        status: row.status,
+        updateState: row.updateState,
+        stackName: row.stackName,
+        dockgeUrl: row.dockgeUrl,
+        note: row.note
+      }))
+  };
+}
+
 async function handleApi(req, res) {
-  if (req.url === "/api/diagnostics") {
+  const pathname = new URL(req.url, "http://local").pathname;
+
+  if (pathname === "/api/diagnostics") {
     json(res, 200, await dockerDiagnostics());
     return;
   }
 
-  if (req.url !== "/api/containers") {
-    json(res, 404, { error: "Not found" });
+  if (pathname === "/api/containers") {
+    try {
+      const rows = await containerRows();
+      json(res, 200, {
+        checkedAt: new Date().toISOString(),
+        containers: rows
+      });
+    } catch (error) {
+      apiError(res, error);
+    }
     return;
   }
 
-  try {
-    const rows = await containerRows();
-    json(res, 200, {
-      checkedAt: new Date().toISOString(),
-      containers: rows
-    });
-  } catch (error) {
-    json(res, 500, {
-      error: "Unable to read Docker containers",
-      detail: error.message
-    });
+  if (pathname === "/api/glance") {
+    try {
+      const rows = await containerRows();
+      const checkedAt = new Date().toISOString();
+      json(res, 200, glancePayload(rows, checkedAt));
+    } catch (error) {
+      apiError(res, error);
+    }
+    return;
   }
+
+  json(res, 404, { error: "Not found" });
 }
 
 async function serveStatic(req, res) {

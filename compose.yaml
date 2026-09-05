@@ -12,5 +12,5 @@ services:
       - ./:/app
       - /var/run/docker.sock:/var/run/docker.sock
     environment:
-      - DOCKGE_URL=http://localhost:5001
+      - DOCKGE_URL=https://docker.bamischijf.com
       - REGISTRY_TIMEOUT_MS=8000

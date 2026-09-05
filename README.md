@@ -16,6 +16,38 @@ By default, Dockge stack links point to <http://localhost:5001>. Set another Doc
 DOCKGE_URL=https://dockge.example.com npm run dev
 ```
 
+## Glance JSON Endpoint
+
+The app exposes a compact dashboard payload at:
+
+```text
+http://localhost:4173/api/glance
+```
+
+Example Glance `custom-api` widget:
+
+```yaml
+- type: custom-api
+  title: Container updates
+  cache: 10m
+  url: http://container-monitor:4173/api/glance
+  template: |
+    <div class="flex justify-between">
+      <span>{{ .JSON.String "summary" }}</span>
+      <span class="color-highlight">{{ .JSON.Int "counts.attention" }}</span>
+    </div>
+    <ul class="list list-gap-10 margin-top-10">
+      {{ range .JSON.Array "containers" }}
+        <li>
+          <div class="size-h4">{{ .String "name" }}</div>
+          <div class="size-h6 color-subdue">{{ .String "image" }}</div>
+        </li>
+      {{ end }}
+    </ul>
+```
+
+Use the hostname or IP that your Glance container can reach. If both apps are on the same Docker network, `http://container-monitor:4173/api/glance` should work.
+
 ## Run In Docker
 
 ```sh
